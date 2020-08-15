@@ -103,7 +103,7 @@ def substep():
       dpos = (offset.cast(float) - fx) * dx
       weight = w[i][0] * w[j][1]
       wr = ti.Vector([center[None][1]-windmill_x[p][1], windmill_x[p][0]-center[None][0]])
-      # wr = wr/wr.norm()
+      wr = wr/wr.norm()
       wr = wr*omega[None]/180.*pi
       grid_v[base + offset] += weight * (p_mass * wr + affine @ dpos)
       grid_m[base + offset] += weight * p_mass
@@ -155,6 +155,9 @@ def substep():
       g_v = grid_v[base + ti.Vector([i, j])]
       weight = w[i][0] * w[j][1]
       new_v += weight * g_v
+    wr = ti.Vector([center[None][1]-windmill_x[p][1], windmill_x[p][0]-center[None][0]])
+    wr = wr*omega[None]/180.*pi
+    new_v = new_v - wr
     torque[None] += new_v.dot(windmill_x[p]-center[None])
   print(torque[None])
     
@@ -189,9 +192,6 @@ def initialize():
   for i in range(sail_num):
     get_transform_matrix(i*step)
     transforms[i] = transform[None]
-    print(transform[None])
-  for i in range(sail_num):
-    print(transforms[i])  
   group_num = windmill_n_particles // sail_num
   for i in range(windmill_n_particles):
     p = ti.Vector([ti.random() * (2.*radius) + center[None][0] - radius, 
@@ -208,7 +208,7 @@ def initialize():
 
 @ti.kernel
 def solve_windmill():
-  omega[None] = torque[None] / I  # Constant Velocity ?
+  # omega[None] = -torque[None] / I  # Constant Velocity ?
   angle[None] += omega[None]*dt
   
 
@@ -218,14 +218,14 @@ def solve_windmill():
     # pos[i] = [p[0], p[1]]
 
     wr = ti.Vector([center[None][1]-windmill_x[p][1], windmill_x[p][0]-center[None][0]])
-    # wr = wr/wr.norm()
+    wr = wr/wr.norm()
     wr = wr*omega[None]/180.*pi
     windmill_x[p] += wr*dt
 
 initialize()
 gui = ti.GUI("Taichi MLS-MPM-99", res=512, background_color=0x112F41)
 # while not gui.get_event(ti.GUI.ESCAPE, ti.GUI.EXIT):
-for frame in range(500):
+for frame in range(200):
   for s in range(int(2e-3 // dt)):
     substep()
     solve_windmill()
@@ -239,4 +239,4 @@ for frame in range(500):
     # gui.line(pos_n[i], pos_n[i+sail_num], radius=5)
   gui.circles(windmill_x.to_numpy(), radius=1.5)
   # gui.show() # Change to gui.show(f'images/{frame:06d}.png') to write images to disk
-  gui.show(f'images2/{frame:06d}.png')
+  gui.show(f'images3/{frame:06d}.png')
